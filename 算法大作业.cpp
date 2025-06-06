@@ -20,7 +20,7 @@ public:
         G[from].push_back({ to, (int)G[to].size(), cap });
         G[to].push_back({ from, (int)G[from].size() - 1, 0 });
 
-        // 记录原始容量用于后续判断是否选中
+      
         original[from].push_back({ to, cap });
     }
 
@@ -36,15 +36,15 @@ public:
         return flow;
     }
 
-    // 返回匹配关系（学生编号 -> 时间段编号），未匹配返回0
+   
     vector<int> get_matches(int num_students, int num_slots) {
         vector<int> match(num_students + 1, 0); // 1-based
         for (int student = 1; student <= num_students; ++student) {
             for (const Edge& e : G[student]) {
                 int to = e.to;
                 if (to >= num_students + 1 && to <= num_students + num_slots) {
-                    if (e.cap == 0) { // 说明该边满流（被使用）
-                        match[student] = to - num_students; // 恢复为时间段编号
+                    if (e.cap == 0) {
+                        match[student] = to - num_students; 
                         break;
                     }
                 }
@@ -55,7 +55,7 @@ public:
 
 private:
     vector<vector<Edge>> G;
-    vector<vector<pair<int, int>>> original; // 原始边和容量
+    vector<vector<pair<int, int>>> original; 
     vector<int> level, iter;
 
     bool bfs(int s, int t) {
@@ -107,7 +107,7 @@ int main() {
 
     MaxFlow mf(total_nodes);
 
-    // 源点 -> 学生
+
     for (int i = 1; i <= num_students; ++i) {
         mf.addEdge(S, i, 1);
     }
@@ -126,7 +126,7 @@ int main() {
         }
     }
 
-    // 学生 -> 可选时间段
+  
     for (int i = 1; i <= num_students; ++i) {
         for (int slot : student_slots[i]) {
             int slot_node = num_students + slot;
@@ -134,7 +134,7 @@ int main() {
         }
     }
 
-    // 时间段 -> 汇点
+
     for (int slot = 1; slot <= num_slots; ++slot) {
         int slot_node = num_students + slot;
         mf.addEdge(slot_node, T, pile_per_slot);
