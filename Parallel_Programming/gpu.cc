@@ -1,0 +1,77 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <cuda_runtime.h>
+
+void ReSet(float* data_D, int N) {
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < i; j++)
+            data_D[i * N + j] = 0;
+        data_D[i * N + i] = 1.0;
+        for (int j = i + 1; j < N; j++)
+            data_D[i * N + j] = rand() % 100;
+    }
+    for (int i = 0; i < N; i++) {
+        int k1 = rand() % N;
+        int k2 = rand() % N;
+        for (int j = 0; j < N; j++) {
+            data_D[i * N + j] += data_D[k1 * N + j];
+            data_D[k1 * N + j] += data_D[k2 * N + j];
+        }
+    }
+}
+
+__global__ void division_kernel(float* data, int k, int N) {
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+
+    for (int j = k + 1 + tid; j < N; j += stride) {
+        data[k * N + j] = data[k * N + j] / data[k * N + k];
+    }
+
+    if (tid == 0) data[k * N + k] = 1.0f;
+}
+
+__global__ void eliminate_kernel(float* data, int k, int N) {
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+
+    for (int i = k + 1 + tid; i < N; i += stride) {
+        float factor = data[i * N + k];
+        for (int j = k + 1; j < N; j++) {
+            data[i * N + j] -= factor * data[k * N + j];
+        }
+        data[i * N + k] = 0.0f;
+    }
+}
+
+int main() {
+    int N = 2000;
+    int block = 1024;
+    int grid = (N + block - 1) / block;
+
+    float* data_D;
+    size_t size = N * N * sizeof(float);
+    cudaMallocManaged(&data_D, size);
+
+    ReSet(data_D, N);
+    cudaDeviceSynchronize();
+
+    for (int k = 0; k < N; k++) {
+        division_kernel<<<grid, block>>>(data_D, k, N);
+        cudaDeviceSynchronize();
+
+        cudaError_t err = cudaGetLastError();
+        if (err != cudaSuccess)
+            printf("division_kernel failed: %s\n", cudaGetErrorString(err));
+
+        eliminate_kernel<<<grid, block>>>(data_D, k, N);
+        cudaDeviceSynchronize();
+
+        err = cudaGetLastError();
+        if (err != cudaSuccess)
+            printf("eliminate_kernel failed: %s\n", cudaGetErrorString(err));
+    }
+
+    cudaFree(data_D);
+    return 0;
+}
